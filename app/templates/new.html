@@ -16,9 +16,6 @@
             flex-direction: column;
             align-items: flex-start;
         }
-        .button-column button {
-            margin-bottom: 10px;
-        }
         canvas {
             position: absolute;
             top: 0;
@@ -32,6 +29,11 @@
             border: 2px solid red;
             background-color: rgba(255, 0, 0, 0.3);
             pointer-events: none;
+        }
+        .btm {
+            position: fixed;
+            bottom: 10px;
+            width: 70%;
         }
     </style>
 </head>
@@ -50,27 +52,40 @@
             <div class="col-md-3">
                 <div class="button-column">
                     <input type="file" class="form-control mb-3" id="uploadInput" accept="image/*">
-                    <button type="button" class="btn btn-secondary" onclick="startCapture()">添加</button>
+                    <div class="button-row">
+                        <button type="button" class="btn btn-secondary" onclick="startCapture()">添加</button>
+                        <a type="button" class="btn btn-danger" onclick="addDocument()">结束</a>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                        <tr>
+                            <th scope="col">框名</th>
+                            <th scope="col">x1</th>
+                            <th scope="col">y1</th>
+                            <th scope="col">x2</th>
+                            <th scope="col">y2</th>
+                        </tr>
+                        </thead>
+                        <tbody id="table-body" class="table-group-divider"></tbody>
+                    </table>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-9">
                 <div id="imageDisplay" class="image-container"></div>
                 <div id="tagContainer" style="display: none;">
-                    <div class="row mb-3">
+                    <div class="row btm">
                         <div class="col-md-8">
-                            <input type="text" id="tagInput" class="form-control tag-input" placeholder="输入标签">
+                            <input type="text" id="tagInput" class="form-control tag-input" placeholder="输入标签"/>
                         </div>
                         <div class="col-md-4">
+                            <!-- <button type="button" class="btn btn-primary" onclick="captureRectangle()">截取</button>-->
                             <button type="button" class="btn btn-danger" onclick="finishCapture()">完成</button>
                         </div>
                     </div>
                 </div>
-                <div id="coordinateDisplay" class="coordinate-display"></div>
-            </div>
-            <div class="col-md-3">
-                <div class="button-column">
-                    <a href="/11" type="button" class="btn btn-danger" onclick="addDocument()">结束</a>
-                </div>
+                <div style="height: 50px;"></div>
             </div>
         </div>
         <script>
@@ -80,6 +95,7 @@
             var selectionBox;
             var imgheight, imgwidth
             var scaleX, scaleY
+            var coordinateList = [];
 
             document.getElementById('uploadInput').onchange = function() {
                 var file = this.files[0];
@@ -102,6 +118,7 @@
                 var imageDisplay = document.getElementById('imageDisplay');
                 imageDisplay.innerHTML = '';
                 imageDisplay.appendChild(img);
+                imageDisplay.style.border = "1px solid #777";
                 scaleX = img.width / imgwidth
                 scaleY = img.height / imgheight
 
@@ -161,26 +178,41 @@
                 if (tagInput === '') {
                   alert('输入框不能为空！');
                 } else {
-                  var coordinates = {
-                    x1: Math.floor(Math.min(startX, endX) / scaleX),
-                    y1: Math.floor(Math.min(startY, endY) /scaleY),
-                    x2: Math.ceil(Math.max(startX, endX) / scaleX),
-                    y2: Math.ceil(Math.max(startY, endY) / scaleY)
-                };
-                var coordinateDisplay = document.getElementById('coordinateDisplay');
-                var coordinateText = `${tagInput} ${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
-                //var zuobiao = `${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
-                coordinateDisplay.innerHTML += `${coordinateText}\n`;
-                document.getElementById('tagInput').value = '';
+                    var coordinates = {
+                      x1: Math.floor(Math.min(startX, endX) / scaleX),
+                      y1: Math.floor(Math.min(startY, endY) /scaleY),
+                      x2: Math.ceil(Math.max(startX, endX) / scaleX),
+                      y2: Math.ceil(Math.max(startY, endY) / scaleY)
+                    };
+                    var coordinateText = `${tagInput} ${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
+                    //var zuobiao = `${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
+                    coordinateList.push(`${coordinateText}\n`);
+                    document.getElementById('tagInput').value = '';
+
+                    var tableRow = document.createElement("tr")
+                    var tableItem = document.createElement("th")
+                    tableItem.innerText = tagInput
+                    tableRow.appendChild(tableItem)
+                    for (var item in coordinates) {
+                        tableItem = document.createElement("td")
+                        tableItem.innerText = String(coordinates[item])
+                        tableRow.appendChild(tableItem)
+                    }
+
+                    var tb = document.getElementById("table-body");
+                    tb.appendChild(tableRow)
                 }
 
             }
 
             function addDocument() {
                 var documentName = document.getElementById('docNameInput').value;
-                var tagContent = document.getElementById('coordinateDisplay').innerHTML;
+                var txtContent = "";
+                for (let item of coordinateList) {
+                    txtContent += item;
+                }
 
-                if (documentName) {
+                if (documentName && imgwidth) {
                     // Retrieve existing button information from local storage
                     var existingButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
 
@@ -195,7 +227,7 @@
 
                     var formData = new FormData();
                     formData.append('documentName', documentName);
-                    formData.append('tagInput', tagContent);
+                    formData.append('tagInput', txtContent);
                     formData.append('imageWidth', imgwidth); // 图像宽度
                     formData.append('imageHeight', imgheight); // 图像高度
 
@@ -224,9 +256,9 @@
 
 
                     // Navigate back to main page
-                    window.location.href = '11.html';
+                    window.location.href = '/';
                 } else {
-                    alert('请填写证件名称.');
+                    alert(imgwidth ? '请填写证件名称.': '未添加图片！');
                 }
 
             }
