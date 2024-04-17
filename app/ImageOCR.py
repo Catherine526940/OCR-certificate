@@ -5,9 +5,14 @@ import pandas as pd
 
 class ImageOCR:
     def __init__(self, weights_path):
-        self.image_h, self.image_w, self.template = self.readTemplateTxt("../ImageProcessing/pos1.txt")
+        self.changeMuban("产权证")
         self.image_processor = ImageProcessor()
         self.ocr = RecognitionModel(weights_path)
+        self.currentmuban = "产权证"
+
+    def changeMuban(self, name):
+        self.image_h, self.image_w, self.template = self.readTemplateTxt(f"../ImageProcessing/{name}.txt")
+        self.currentmuban = name
 
     def readTemplateTxt(self, template_path):
         template = []
@@ -39,21 +44,22 @@ class ImageOCR:
             item = self.generateKVInfo(name, 100, result, conf * 100, (x1, y1, x2, y2))
             kv_json.append(item)
 
-        # 后处理补信息
-        area = data2_json["面积"]
-        house_area_index = area.find("房屋建筑")
-        if house_area_index >= 0:
-            house_area = data2_json["面积"][house_area_index + 6:].strip(" ")
-            data2_json["房屋建筑面积"] = house_area
-            kv_json.append(self.generateKVInfo("房屋建筑面积", 100, house_area, 60, None))
-        else:
-            data2_json["房屋建筑面积"] = ""
-            kv_json.append(self.generateKVInfo("房屋建筑面积", 100, "", 60, None))
+        if self.currentmuban == "产权证":
+            # 后处理补信息
+            area = data2_json["面积"]
+            house_area_index = area.find("房屋建筑")
+            if house_area_index >= 0:
+                house_area = data2_json["面积"][house_area_index + 6:].strip(" ")
+                data2_json["房屋建筑面积"] = house_area
+                kv_json.append(self.generateKVInfo("房屋建筑面积", 100, house_area, 60, None))
+            else:
+                data2_json["房屋建筑面积"] = ""
+                kv_json.append(self.generateKVInfo("房屋建筑面积", 100, "", 60, None))
 
-        chanquan = data2_json["证号"].replace(" ", "")
-        hao_index = chanquan.find("号")
-        data2_json["丘权号"] = chanquan[-8: -1] if hao_index >= 0 else chanquan[-7:]
-        kv_json.append(self.generateKVInfo("丘权号", 100, chanquan[-8: -1], 80, None))
+            chanquan = data2_json["证号"].replace(" ", "")
+            hao_index = chanquan.find("号")
+            data2_json["丘权号"] = chanquan[-8: -1] if hao_index >= 0 else chanquan[-7:]
+            kv_json.append(self.generateKVInfo("丘权号", 100, chanquan[-8: -1], 80, None))
 
         # 组合json
         data_json["data"] = data2_json

@@ -61,7 +61,6 @@
                             <input type="text" id="tagInput" class="form-control tag-input" placeholder="输入标签">
                         </div>
                         <div class="col-md-4">
-<!--                            <button type="button" class="btn btn-primary" onclick="captureRectangle()">截取</button>-->
                             <button type="button" class="btn btn-danger" onclick="finishCapture()">完成</button>
                         </div>
                     </div>
@@ -69,15 +68,6 @@
                 <div id="coordinateDisplay" class="coordinate-display"></div>
             </div>
             <div class="col-md-3">
-                <!-- 右侧--结束按钮 -->
-<!--                <form id="endForm" action="/end_process" method="POST">-->
-<!--                    <div class="col-md-3">-->
-<!--                        &lt;!&ndash; 右侧&#45;&#45;结束按钮 &ndash;&gt;-->
-<!--                        <div class="button-column">-->
-<!--                            <button type="submit" class="btn btn-danger">导出模板</button>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </form>-->
                 <div class="button-column">
                     <a href="/11" type="button" class="btn btn-danger" onclick="addDocument()">结束</a>
                 </div>
@@ -88,16 +78,20 @@
             var startX, startY, endX, endY;
             var selecting = false;
             var selectionBox;
+            var imgheight, imgwidth
+            var scaleX, scaleY
 
             document.getElementById('uploadInput').onchange = function() {
                 var file = this.files[0];
                 var reader = new FileReader();
                 reader.onload = function(e) {
                     var img = new Image();
-                    img.onload = function() {
-                        prepareCanvas(img);
-                    };
                     img.src = e.target.result;
+                    img.onload = function() {
+                        imgwidth = img.width
+                        imgheight = img.height
+                        prepareCanvas(img);
+                    }
                     img.classList.add('img-fluid');
                 };
                 reader.readAsDataURL(file);
@@ -107,6 +101,8 @@
                 var imageDisplay = document.getElementById('imageDisplay');
                 imageDisplay.innerHTML = '';
                 imageDisplay.appendChild(img);
+                scaleX = img.width / imgwidth
+                scaleY = img.height / imgheight
 
                 canvas = document.createElement('canvas');
                 canvas.width = img.naturalWidth;
@@ -165,41 +161,20 @@
                   alert('输入框不能为空！');
                 } else {
                   var coordinates = {
-                    x1: Math.min(startX, endX),
-                    y1: Math.min(startY, endY),
-                    x2: Math.max(startX, endX),
-                    y2: Math.max(startY, endY)
+                    x1: Math.floor(Math.min(startX, endX) / scaleX),
+                    y1: Math.floor(Math.min(startY, endY) /scaleY),
+                    x2: Math.ceil(Math.max(startX, endX) / scaleX),
+                    y2: Math.ceil(Math.max(startY, endY) / scaleY)
                 };
                 var coordinateDisplay = document.getElementById('coordinateDisplay');
                 var coordinateText = `${tagInput} ${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
                 //var zuobiao = `${coordinates.x1} ${coordinates.y1} ${coordinates.x2} ${coordinates.y2}`;
-                coordinateDisplay.innerHTML += `${coordinateText}`;
+                coordinateDisplay.innerHTML += `${coordinateText}\n`;
                 document.getElementById('tagInput').value = '';
                 }
 
             }
-            // 结束按钮事件---原来的
-            // function addDocument() {
-            //     var documentName = document.getElementById('docNameInput').value;
-            //     if (documentName) {
-            //         // Retrieve existing button information from local storage
-            //         var existingButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
-            //
-            //         // Generate unique ID for the new button
-            //         var newButtonId = 'button_' + Date.now();
-            //
-            //         // Add the new button information
-            //         existingButtons.push({ id: newButtonId, name: documentName });
-            //
-            //         // Save updated button information to local storage
-            //         localStorage.setItem('addedButtons', JSON.stringify(existingButtons));
-            //
-            //         // Navigate back to main page
-            //         window.location.href = '11.html';
-            //     } else {
-            //         alert('请填写证件名称.');
-            //     }
-            // }
+
             function addDocument() {
                 var documentName = document.getElementById('docNameInput').value;
                 var tagContent = document.getElementById('coordinateDisplay').innerHTML;
@@ -217,18 +192,35 @@
                     // Save updated button information to local storage
                     localStorage.setItem('addedButtons', JSON.stringify(existingButtons));
 
-                    // Create a text file with document name and tag content
-                    var txtContent = `${documentName}\n${tagContent}\n`;
-                    var blob = new Blob([txtContent], { type: 'text/plain' });
-                    var url = URL.createObjectURL(blob);
+                    var formData = new FormData();
+                    formData.append('documentName', documentName);
+                    formData.append('tagInput', tagContent);
+                    formData.append('imageWidth', imgwidth); // 图像宽度
+                    formData.append('imageHeight', imgheight); // 图像高度
 
-                    // Trigger automatic download
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = documentName + '.txt';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                    fetch('/download', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
+                        }
+                        throw new Error('Network response was not ok.');
+                    })
+                    //这个是把txt下载到浏览器默认地址的
+                    // .then(blob => {
+                    //     // 创建URL对象并下载文件
+                    //     var url = URL.createObjectURL(blob);
+                    //     var a = document.createElement('a');
+                    //     a.href = url;
+                    //     a.download = documentName + '.txt';
+                    //     document.body.appendChild(a);
+                    //     a.click();
+                    //     document.body.removeChild(a);
+                    // })
+                    .catch(error => console.error('There was a problem with the fetch operation:', error));
+
 
                     // Navigate back to main page
                     window.location.href = '11.html';

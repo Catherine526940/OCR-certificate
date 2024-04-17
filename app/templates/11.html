@@ -14,13 +14,17 @@
         .result-container {
             margin-top: 20px;
         }
+
         .button-column {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
+            align-items: flex-end; /* 按钮浮动到右侧 */
         }
+
         .button-column button {
-            margin-bottom: 10px;
+            margin-bottom: 5px; /* 调整按钮之间的垂直间距 */
+            padding: 5px 10px; /* 调整按钮的内边距 */
+            font-size: 14px; /* 调整按钮的字体大小 */
         }
         .button-column button.delete-button {
             margin-left: 5px;
@@ -29,7 +33,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center">Image OCR</h1>
+        <h1 id="pageTitle" class="text-center">Image OCR</h1>
         <div class="row">
             <div class="col-md-3">
                 <div class="button-column">
@@ -56,7 +60,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <!-- 右侧留空 -->
+                <div id="documentButtons" class="button-column"></div>
             </div>
         </div>
         <!-- 放置动态创建的按钮的区域 -->
@@ -105,15 +109,34 @@
         }
 
        window.onload = function() {
-    var addedButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
 
-    // 创建并显示所有已添加的按钮
-    var documentButtonsDiv = document.getElementById('documentButtons');
-    addedButtons.forEach(function(buttonInfo) {
-        var newButton = document.createElement('button');
-        newButton.className = 'btn btn-secondary';
-        newButton.textContent = buttonInfo.name;
-        newButton.id = buttonInfo.id;
+
+            var addedButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
+
+            // 创建并显示所有已添加的按钮
+            var documentButtonsDiv = document.getElementById('documentButtons');
+            addedButtons.forEach(function(buttonInfo) {
+                var newButton = document.createElement('button');
+                newButton.className = 'btn btn-secondary';
+                newButton.textContent = buttonInfo.name;
+                newButton.id = buttonInfo.id;
+                newButton.onclick = function () {
+                    fetch('/api/changemuban', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name: buttonInfo.name })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data)
+                        // 更新页面标题
+                        document.getElementById('pageTitle').textContent = buttonInfo.name;
+                    })
+                    .catch(error => console.error('Error:', error));
+
+                }
 
         // 创建删除按钮
         var deleteButton = document.createElement('button');
@@ -128,6 +151,7 @@
                 return btn.id !== buttonInfo.id;
             });
             localStorage.setItem('addedButtons', JSON.stringify(updatedButtons));
+            addedButtons = updatedButtons;
         };
 
         // 将新按钮和删除按钮添加到页面

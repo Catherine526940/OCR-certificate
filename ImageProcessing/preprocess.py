@@ -142,6 +142,6 @@ if __name__ == "__main__":
     img_path = r"D:\DLDataset\cqzp\26.jpg"
     image = cv2.imread(img_path)
     # img_path = r"D:\ProgramCode\craft_rcnn_forch-master\craft_rcnn_forch\data\test_img\why.jpg"
-    image_h, image_w, template = readTemplateTxt("../ImageProcessing/pos1.txt")
+    image_h, image_w, template = readTemplateTxt("产权证.txt")
     poses, copy, angle = detector.processImage(image, template.iloc[:, 1:], shape=(image_w, image_h))
     cv2.waitKey(0)

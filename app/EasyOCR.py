@@ -11,7 +11,7 @@ class EasyOCR:
         self.titles = []
         self.image_processor = ImageProcessor()
         self.ocr = OCR()
-        self.image_h, self.image_w, self.template = self.readTemplateTxt("../ImageProcessing/pos1.txt")
+        self.changeMuban("产权证")
 
     def readTemplateTxt(self, template_path):
         template = []
@@ -26,6 +26,9 @@ class EasyOCR:
             else:
                 h, w = map(int, line)
         return h, w, pd.DataFrame(template, columns=["name", "ltx", "lty", "rbx", "rby"])
+
+    def changeMuban(self, name):
+        self.image_h, self.image_w, self.template = self.readTemplateTxt(f"../ImageProcessing/{name}.txt")
 
     def recognize(self, image):
         bbox_pos, enhanced_image, angle = self.image_processor.processImage(image, self.template.iloc[:, 1:], (self.image_w, self.image_h))
