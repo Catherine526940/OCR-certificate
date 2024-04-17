@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image OCR</title>
+    <!-- 引入 Bootstrap 样式 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 自定义样式 */
+        .image-container {
+            margin-top: 20px;
+        }
+        .result-container {
+            margin-top: 20px;
+        }
+        .button-column {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .button-column button {
+            margin-bottom: 10px;
+        }
+        .button-column button.delete-button {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Image OCR</h1>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="button-column">
+                    <!-- 新建按钮 -->
+                    <a href="/new" class="btn btn-secondary">新建识别模板</a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-12">
+                        <form id="imageForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <input type="file" class="form-control" id="imageInput" name="image" accept="image/*">
+                            </div>
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-primary" onclick="processImage()">识别</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-12">
+                        <div id="imageDisplay" class="image-container"></div>
+                        <div id="resultDisplay" class="result-container"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <!-- 右侧留空 -->
+            </div>
+        </div>
+        <!-- 放置动态创建的按钮的区域 -->
+        <div id="documentButtons" class="button-column"></div>
+    </div>
+
+    <script>
+        // 在文件选择后立即触发图片处理和展示
+        document.getElementById('imageInput').onchange = function() {
+            processImage();
+        };
+
+        function processImage() {
+            var input = document.getElementById('imageInput');
+            var file = input.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var imageData = e.target.result;
+
+                    // 显示选择的图片
+                    var imageDisplay = document.getElementById('imageDisplay');
+                    imageDisplay.innerHTML = '<img src="' + imageData + '" class="img-fluid">';
+
+                    // 发送图片数据到后端进行识别
+                    fetch('/api/ocr', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ img: imageData })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // 显示识别结果
+                        var resultDisplay = document.getElementById('resultDisplay');
+                        resultDisplay.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    })
+                    .catch(error => console.error('Error:', error));
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('请选择图片文件.');
+            }
+        }
+
+       window.onload = function() {
+    var addedButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
+
+    // 创建并显示所有已添加的按钮
+    var documentButtonsDiv = document.getElementById('documentButtons');
+    addedButtons.forEach(function(buttonInfo) {
+        var newButton = document.createElement('button');
+        newButton.className = 'btn btn-secondary';
+        newButton.textContent = buttonInfo.name;
+        newButton.id = buttonInfo.id;
+
+        // 创建删除按钮
+        var deleteButton = document.createElement('button');
+        deleteButton.className = 'btn btn-danger delete-button';
+        deleteButton.textContent = '删除';
+        deleteButton.onclick = function() {
+            // 删除当前按钮
+            newButton.parentNode.removeChild(newButton);
+            deleteButton.parentNode.removeChild(deleteButton);
+            // 更新 localStorage 中的按钮信息
+            var updatedButtons = addedButtons.filter(function(btn) {
+                return btn.id !== buttonInfo.id;
+            });
+            localStorage.setItem('addedButtons', JSON.stringify(updatedButtons));
+        };
+
+        // 将新按钮和删除按钮添加到页面
+        documentButtonsDiv.appendChild(newButton);
+        documentButtonsDiv.appendChild(deleteButton);
+    });
+}
+
+    </script>
+
+</body>
+</html>

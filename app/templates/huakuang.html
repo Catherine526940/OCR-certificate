@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .image-container {
+            margin-top: 20px;
+            position: relative;
+            max-width: 100%;
+        }
+        .button-column {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .button-column button {
+            margin-bottom: 10px;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            cursor: crosshair;
+        }
+        /* 新增样式 */
+        .selection-box {
+            position: absolute;
+            border: 2px solid red;
+            background-color: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">增加</h1>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <label for="docNameInput" class="form-label">证件名称：</label>
+                    <input type="text" class="form-control doc-name-input" id="docNameInput">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="button-column">
+                    <input type="file" class="form-control mb-3" id="uploadInput" accept="image/*">
+                    <button type="button" class="btn btn-secondary" onclick="startCapture()">添加</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div id="imageDisplay" class="image-container"></div>
+                <div id="tagContainer" style="display: none;">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <input type="text" id="tagInput" class="form-control tag-input" placeholder="输入标签">
+                        </div>
+                        <div class="col-md-4">
+<!--                            <button type="button" class="btn btn-primary" onclick="captureRectangle()">截取</button>-->
+                            <button type="button" class="btn btn-danger" onclick="finishCapture()">完成</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="coordinateDisplay" class="coordinate-display"></div>
+            </div>
+            <div class="col-md-3">
+                <!-- 右侧--结束按钮 -->
+                <div class="button-column">
+                    <button type="button" class="btn btn-danger" onclick="addDocument()">结束</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            var canvas, ctx;
+            var startX, startY, endX, endY;
+            var selecting = false;
+            var selectionBox;
+
+            document.getElementById('uploadInput').onchange = function() {
+                var file = this.files[0];
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var img = new Image();
+                    img.onload = function() {
+                        prepareCanvas(img);
+                    };
+                    img.src = e.target.result;
+                    img.classList.add('img-fluid');
+                };
+                reader.readAsDataURL(file);
+            };
+
+            function prepareCanvas(img) {
+                var imageDisplay = document.getElementById('imageDisplay');
+                imageDisplay.innerHTML = '';
+                imageDisplay.appendChild(img);
+
+                canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.style.width = '100%';
+                imageDisplay.appendChild(canvas);
+
+                ctx = canvas.getContext('2d');
+                canvas.onmousedown = startSelection;
+                canvas.onmousemove = updateSelection;
+                canvas.onmouseup = stopSelection;
+
+                selectionBox = document.createElement('div');
+                selectionBox.className = 'selection-box';
+                imageDisplay.appendChild(selectionBox);
+            }
+
+            function startSelection(e) {
+                selecting = true;
+                startX = e.offsetX;
+                startY = e.offsetY;
+            }
+
+            function updateSelection(e) {
+                if (!selecting) return;
+
+                endX = e.offsetX;
+                endY = e.offsetY;
+
+                var minX = Math.min(startX, endX);
+                var minY = Math.min(startY, endY);
+                var width = Math.abs(startX - endX);
+                var height = Math.abs(startY - endY);
+
+                selectionBox.style.left = minX + 'px';
+                selectionBox.style.top = minY + 'px';
+                selectionBox.style.width = width + 'px';
+                selectionBox.style.height = height + 'px';
+            }
+
+            function stopSelection() {
+                selecting = false;
+            }
+
+            function startCapture() {
+                document.getElementById('tagContainer').style.display = 'block';
+            }
+
+            function captureRectangle() {
+                // 这里可以添加额外逻辑，比如保存坐标
+            }
+
+            function finishCapture() {
+                var tagInput = document.getElementById('tagInput').value;
+                var tagInput = document.getElementById('tagInput').value;
+                if (tagInput === '') {
+                  alert('输入框不能为空！');
+                } else {
+                  var coordinates = {
+                    x1: Math.min(startX, endX),
+                    y1: Math.min(startY, endY),
+                    x2: Math.max(startX, endX),
+                    y2: Math.max(startY, endY)
+                };
+                var coordinateDisplay = document.getElementById('coordinateDisplay');
+                var coordinateText = `${tagInput}: (${coordinates.x1}, ${coordinates.y1}), (${coordinates.x2}, ${coordinates.y2})`;
+                coordinateDisplay.innerHTML += `<div>${coordinateText}</div>`;
+                document.getElementById('tagInput').value = '';
+                }
+
+            }
+            // 结束按钮事件
+            function addDocument() {
+                var documentName = document.getElementById('docNameInput').value;
+
+                if (documentName) {
+                    // Retrieve existing button information from local storage
+                    var existingButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
+
+                    // Generate unique ID for the new button
+                    var newButtonId = 'button_' + Date.now();
+
+                    // Add the new button information
+                    existingButtons.push({ id: newButtonId, name: documentName });
+
+                    // Save updated button information to local storage
+                    localStorage.setItem('addedButtons', JSON.stringify(existingButtons));
+
+                    // Navigate back to main page
+                    window.location.href = '11.html';
+                } else {
+                    alert('请填写证件名称.');
+                }
+            }
+        </script>
+    </div>
+</body>
+</html>

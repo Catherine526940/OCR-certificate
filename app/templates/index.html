@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processing</title>
+    <style>
+        #imageDisplay {
+            width: 400px;
+            height: 400px;
+            overflow: hidden;
+        }
+
+        #imageDisplay img {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Processing</h1>
+    <form id="imageForm" method="post" enctype="multipart/form-data">
+        <input type="file" id="imageInput" name="image" accept="image/*">
+        <button type="button" onclick="processImage()">Process Image</button>
+    </form>
+    <div id="imageDisplay"></div>
+
+    <script>
+        function processImage() {
+            var input = document.getElementById('imageInput');
+            var file = input.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var imageData = e.target.result;
+
+                    // Send the base64 encoded image data to the backend
+                    fetch('/process_image', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: 'image=' + encodeURIComponent(imageData)
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        // Display the processed image on the webpage
+                        var imageDisplay = document.getElementById('imageDisplay');
+                        imageDisplay.innerHTML = '<img src="data:image/jpeg;base64,' + data + '">';
+                    })
+                    .catch(error => console.error('Error:', error));
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please select an image file.');
+            }
+        }
+    </script>
+</body>
+</html>
