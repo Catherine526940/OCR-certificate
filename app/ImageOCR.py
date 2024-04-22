@@ -29,7 +29,7 @@ class ImageOCR:
         return h, w, pd.DataFrame(template, columns=["name", "ltx", "lty", "rbx", "rby"])
 
     def recognize(self, image):
-        _, enhanced_image, angle = self.image_processor.processImage(image, self.template.iloc[:, 1:], (self.image_w, self.image_h))
+        _, enhanced_image, angle = self.image_processor.processImage(image, (self.image_w, self.image_h))
         result = self.getResult(enhanced_image, image.shape, angle)
         return result
 

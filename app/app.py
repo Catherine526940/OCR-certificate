@@ -11,6 +11,7 @@ import io
 
 from ImageOCR import ImageOCR
 from EasyOCR import EasyOCR
+from ImageProcessing.preprocess import ImageProcessor
 
 app = Flask(__name__)
 ocr = ImageOCR("../ournet/weights/model_6.pth")
@@ -75,6 +76,12 @@ def change():
     name = json.loads(request.data)["name"]
     ocr.changeMuban(name)
     return jsonify(name)
+
+@app.route('/api/processconfig')
+def setConfig():
+    config = json.loads(request.data)
+    image_new = ocr.image_processor.changeConfig(config)
+    return jsonify(image_new)
 
 if __name__ == "__main__":
     app.run(debug=True)
