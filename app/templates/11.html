@@ -21,13 +21,43 @@
             align-items: flex-end; /* 按钮浮动到右侧 */
         }
 
-        .button-column button {
+        .button-column .delete-button {
+            margin-left: 5px;
+        }
+        .button-column-row{
+            display: flex;
+            flex-direction: row;
             margin-bottom: 5px; /* 调整按钮之间的垂直间距 */
+        }
+        .button-column-row button{
             padding: 5px 10px; /* 调整按钮的内边距 */
             font-size: 14px; /* 调整按钮的字体大小 */
         }
-        .button-column button.delete-button {
-            margin-left: 5px;
+        .column-title{
+            height: 30px;
+            font-size: 20px;
+            line-height: 30px;
+            margin: 10px 0;
+        }
+        .title-right{
+            text-align: right;
+            padding-right: 10px;
+        }
+        .title-left{
+            text-align: center;
+        }
+        .preprocess-title{
+            font-size: 15px;
+            line-height: 20px;
+            margin-right: 5px;
+            width: 130px;
+        }
+        .preprocess-checkbox{
+            width: 20px;
+            height: 20px;
+        }
+        .preprocess-disabled{
+            color: #999;
         }
     </style>
 </head>
@@ -36,10 +66,37 @@
         <h1 id="pageTitle" class="text-center">Image OCR</h1>
         <div class="row">
             <div class="col-md-3">
-                <div class="button-column">
-                    <!-- 新建按钮 -->
-                    <a href="/new" class="btn btn-secondary">新建识别模板</a>
-                </div>
+                <form id="preprocessForm">
+                    <div class="column-title title-left">额外预处理调节</div>
+                    <div class="button-column-row">
+                        <label class="preprocess-title" for="use-preprocess">是否额外预处理</label>
+                        <input type="checkbox" class="preprocess-checkbox" id="use-preprocess">
+                    </div>
+                    <div class="button-column-row preprocess-disabled">
+                        <label class="preprocess-title" for="use-binary">是否适应性二值化</label>
+                        <input type="checkbox" class="preprocess-checkbox" id="use-binary" disabled>
+                    </div>
+                    <div class="button-column-row preprocess-disabled">
+                        <label class="preprocess-title" for="use-filter">是否滤波</label>
+                        <input type="checkbox" class="preprocess-checkbox" id="use-filter" disabled>
+                    </div>
+                    <div class="button-column-row preprocess-disabled">
+                        <label class="preprocess-title" for="dilate-first">先膨胀后侵蚀</label>
+                        <input type="checkbox" class="preprocess-checkbox" id="dilate-first" min="1" max="8" disabled>
+                    </div>
+                    <div class="button-column-row preprocess-disabled">
+                        <label class="preprocess-title" for="erode-kernel">侵蚀核大小</label>
+                        <div id="label-erode-kernel">1</div>
+                        <input type="range" class="preprocess-range" id="erode-kernel" min="1" max="8" value="1"
+                               disabled oninput="changeValue('erode-kernel')">
+                    </div>
+                    <div class="button-column-row preprocess-disabled">
+                        <label class="preprocess-title" for="dilate-kernel">膨胀核大小</label>
+                        <div id="label-dilate-kernel">1</div>
+                        <input type="range" class="preprocess-range" id="dilate-kernel" min="1" max="8" value="1"
+                               disabled oninput="changeValue('dilate-kernel')">
+                    </div>
+                </form>
             </div>
             <div class="col-md-6">
                 <div class="row">
@@ -60,11 +117,14 @@
                 </div>
             </div>
             <div class="col-md-3">
+                <div class="button-column">
+                    <!-- 新建按钮 -->
+                    <a href="/new" class="btn btn-secondary">新建识别模板</a>
+                </div>
+                <div class="column-title title-right">模板选择</div>
                 <div id="documentButtons" class="button-column"></div>
             </div>
         </div>
-        <!-- 放置动态创建的按钮的区域 -->
-        <div id="documentButtons" class="button-column"></div>
     </div>
 
     <script>
@@ -72,6 +132,30 @@
         document.getElementById('imageInput').onchange = function() {
             processImage();
         };
+        document.getElementById('use-preprocess').onchange = (e)=>{
+            if(e.target.checked){
+                let nodes = document.getElementsByClassName("preprocess-disabled")
+                while(nodes.length !== 0){
+                    nodes[0].childNodes.forEach((item) => {
+                        if(item.nodeName === "INPUT"){
+                            item.disabled = false
+                        }
+                    })
+                    nodes[0].className = "button-column-row preprocess-enabled"
+                }
+            }
+            else{
+                let nodes = document.getElementsByClassName("preprocess-enabled")
+                while (nodes.length !== 0) {
+                    nodes[0].childNodes.forEach((item) => {
+                        if(item.nodeName === "INPUT"){
+                            item.disabled = true
+                        }
+                    })
+                    nodes[0].className = "button-column-row preprocess-disabled"
+                }
+            }
+        }
 
         function processImage() {
             var input = document.getElementById('imageInput');
@@ -107,10 +191,11 @@
                 alert('请选择图片文件.');
             }
         }
+        function changeValue(e){
+            document.getElementById(`label-${e}`).innerHTML = document.getElementById(e).value;
+        }
 
-       window.onload = function() {
-
-
+        window.onload = function() {
             var addedButtons = JSON.parse(localStorage.getItem('addedButtons')) || [];
 
             // 创建并显示所有已添加的按钮
@@ -130,7 +215,6 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        console.log(data)
                         // 更新页面标题
                         document.getElementById('pageTitle').textContent = buttonInfo.name;
                     })
@@ -138,28 +222,32 @@
 
                 }
 
-        // 创建删除按钮
-        var deleteButton = document.createElement('button');
-        deleteButton.className = 'btn btn-danger delete-button';
-        deleteButton.textContent = '删除';
-        deleteButton.onclick = function() {
-            // 删除当前按钮
-            newButton.parentNode.removeChild(newButton);
-            deleteButton.parentNode.removeChild(deleteButton);
-            // 更新 localStorage 中的按钮信息
-            var updatedButtons = addedButtons.filter(function(btn) {
-                return btn.id !== buttonInfo.id;
+                // 创建删除按钮
+                var deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger delete-button';
+                deleteButton.textContent = '删除';
+                deleteButton.onclick = function() {
+                    // 删除当前按钮
+                    newButton.parentNode.removeChild(newButton);
+                    deleteButton.parentNode.removeChild(deleteButton);
+                    // 更新 localStorage 中的按钮信息
+                    var updatedButtons = addedButtons.filter(function(btn) {
+                        return btn.id !== buttonInfo.id;
+                    });
+                    localStorage.setItem('addedButtons', JSON.stringify(updatedButtons));
+                    addedButtons = updatedButtons;
+                };
+
+                let newBtnRow = document.createElement("div");
+                newBtnRow.className = "button-column-row";
+
+
+                // 将新按钮和删除按钮添加到页面
+                newBtnRow.appendChild(newButton);
+                newBtnRow.appendChild(deleteButton);
+                documentButtonsDiv.appendChild(newBtnRow)
             });
-            localStorage.setItem('addedButtons', JSON.stringify(updatedButtons));
-            addedButtons = updatedButtons;
-        };
-
-        // 将新按钮和删除按钮添加到页面
-        documentButtonsDiv.appendChild(newButton);
-        documentButtonsDiv.appendChild(deleteButton);
-    });
-}
-
+        }
     </script>
 
 </body>

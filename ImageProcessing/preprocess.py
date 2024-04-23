@@ -5,16 +5,30 @@ import numpy as np
 import cv2
 import pandas as pd
 
+from ImageProcessing.PreprocessConfig import *
+
 
 class ImageProcessor:
+    def __init__(self):
+        self.img_now_rotate = None
 
-    def _findMinAndMaxPos(self, template_pos):
-        return template_pos[0, :2], template_pos[0, 2:]
+    def processImage(self, img, shape, relative=False, poses=None):
+        """
+        预处理的总方法。
 
-    def processImage(self, img, poses, shape, relative=False):
+        不在这里调整预处理的具体参数，这里只是传图片过来。
+
+        :param img: np.array 需要预处理的图片，cv2读取
+        :param shape: Iterable[2] 模板图像的宽高
+        :param relative: bool 目前使用的是写死的绝对坐标。如果要改为以前的相对坐标，则改为True并填上poses。有bug!
+        :param poses: list[][4] 见相对坐标模板，反正现在也不用了
+        """
         img = cv2.resize(img, shape)
-        img, angle = self._adjust_text(img)
+        img, angle = self._rotate(img)
+        self.img_now_rotate = img
         red_channel = img.copy()[:, :, 2]
+        if use_preprocess:
+            red_channel = self.other_process(red_channel)
         if relative:
             tmpl_lt, tmpl_rb = self._findMinAndMaxPos(np.array(poses))
             # print(self.tmpl_lt, self.tmpl_rb)
@@ -48,9 +62,9 @@ class ImageProcessor:
             res_all.append(res)
         return sum(res_all) / len(res_all)
 
-    def _adjust_text(self, image):
+    def _rotate(self, image):
         canny = cv2.Canny(image, 50, 200, 3)
-        lines = cv2.HoughLines(canny, 1, np.pi / 360, min(canny.shape) // 2)
+        lines = cv2.HoughLines(canny, 1, np.pi / 360, min(canny.shape) // 4)
         values = []
         for i in range(0, len(lines)):
             rho, theta = lines[i][0][0], lines[i][0][1]
@@ -61,6 +75,43 @@ class ImageProcessor:
                                 cv2.BORDER_REPLICATE,
                                 (255, 255, 255))
         return result, angle
+
+    def other_process(self, image):
+        '''
+        对图像做其他处理。
+
+        不在这里调整预处理的具体参数。
+
+        :param image: np.array 需要预处理的图片，cv2读取
+        '''
+        if use_threshold:
+            image = cv2.adaptiveThreshold(image, 255, threshold_method, cv2.THRESH_BINARY, threshold_kernel, threshold_C)
+        if use_filter:
+            if filter_type.lower() == "gaussian":
+                image = cv2.GaussianBlur(image, (filter_kernel_size, filter_kernel_size), 0)
+            elif filter_type.lower() == "mean":
+                image = cv2.medianBlur(image, filter_kernel_size)
+        elif use_edge_sharpen:
+            edge = cv2.Laplacian(image, -1, edge_sharpen_kernel)
+            image = cv2.add(image, edge)
+        if dilate_first:
+            image = cv2.dilate(image, np.ones((dilate_kernel_size, dilate_kernel_size), dtype=np.uint8), dilate_time)
+            image = cv2.erode(image, np.ones((erode_kernel_size, erode_kernel_size), dtype=np.uint8), erode_time)
+        else:
+            image = cv2.erode(image, np.ones((erode_kernel_size, erode_kernel_size), dtype=np.uint8), erode_time)
+            image = cv2.dilate(image, np.ones((dilate_kernel_size, dilate_kernel_size), dtype=np.uint8), dilate_time)
+        return image
+
+    def changeConfig(self, config):
+        '''
+        在这里设置预处理的具体参数。
+
+        :param config:json?dict? 配置的具体参数，见PreprocessConfig.py
+        TODO: 这个功能尚未完成。
+        '''
+        setConfig(config)
+        return self.other_process(self.img_now_rotate)
+
 
     def _FindTablePos(self, src_img):
         copy = src_img.copy()
@@ -109,6 +160,9 @@ class ImageProcessor:
         # showImg("", img)
         return poses
 
+    def _findMinAndMaxPos(self, template_pos):
+        return template_pos[0, :2], template_pos[0, 2:]
+
     def _markItemsWithFixed(self, poses, img):
         for (index, x1, y1, x2, y2) in poses.itertuples():
             x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
@@ -117,9 +171,9 @@ class ImageProcessor:
 
 
 def showImg(title, img):
-    w = img.shape[1]
-    h = img.shape[0]
-    cv2.imshow(title, cv2.resize(img, (w, h)))
+    w = img.shape[0]
+    h = img.shape[1]
+    cv2.imshow(title, cv2.resize(img, (w // 4, h // 4)))
     cv2.waitKey(0)
 
 
@@ -143,5 +197,5 @@ if __name__ == "__main__":
     image = cv2.imread(img_path)
     # img_path = r"D:\ProgramCode\craft_rcnn_forch-master\craft_rcnn_forch\data\test_img\why.jpg"
     image_h, image_w, template = readTemplateTxt("产权证.txt")
-    poses, copy, angle = detector.processImage(image, template.iloc[:, 1:], shape=(image_w, image_h))
+    poses, copy, angle = detector.processImage(image, shape=(image_w, image_h))
     cv2.waitKey(0)
