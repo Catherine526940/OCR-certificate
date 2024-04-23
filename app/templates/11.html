@@ -70,19 +70,19 @@
                     <div class="column-title title-left">额外预处理调节</div>
                     <div class="button-column-row">
                         <label class="preprocess-title" for="use-preprocess">是否额外预处理</label>
-                        <input type="checkbox" class="preprocess-checkbox" id="use-preprocess">
+                        <input type="checkbox" class="preprocess-checkbox" id="use-preprocess" onclick="setConfig()">
                     </div>
                     <div class="button-column-row preprocess-disabled">
                         <label class="preprocess-title" for="use-binary">是否适应性二值化</label>
-                        <input type="checkbox" class="preprocess-checkbox" id="use-binary" disabled>
+                        <input type="checkbox" class="preprocess-checkbox" id="use-binary" disabled onclick="setConfig()">
                     </div>
                     <div class="button-column-row preprocess-disabled">
                         <label class="preprocess-title" for="use-filter">是否滤波</label>
-                        <input type="checkbox" class="preprocess-checkbox" id="use-filter" disabled>
+                        <input type="checkbox" class="preprocess-checkbox" id="use-filter" disabled onclick="setConfig()">
                     </div>
                     <div class="button-column-row preprocess-disabled">
                         <label class="preprocess-title" for="dilate-first">先膨胀后侵蚀</label>
-                        <input type="checkbox" class="preprocess-checkbox" id="dilate-first" min="1" max="8" disabled>
+                        <input type="checkbox" class="preprocess-checkbox" id="dilate-first" min="1" max="8" disabled onclick="setConfig()">
                     </div>
                     <div class="button-column-row preprocess-disabled">
                         <label class="preprocess-title" for="erode-kernel">侵蚀核大小</label>
@@ -106,7 +106,7 @@
                                 <input type="file" class="form-control" id="imageInput" name="image" accept="image/*">
                             </div>
                             <div class="mb-3">
-                                <button type="button" class="btn btn-primary" onclick="processImage()">识别</button>
+                                <button type="button" class="btn btn-primary" onclick="recognize()">识别</button>
                             </div>
                         </form>
                     </div>
@@ -130,34 +130,56 @@
     <script>
         // 在文件选择后立即触发图片处理和展示
         document.getElementById('imageInput').onchange = function() {
-            processImage();
+            passImage();
         };
         document.getElementById('use-preprocess').onchange = (e)=>{
-            if(e.target.checked){
-                let nodes = document.getElementsByClassName("preprocess-disabled")
-                while(nodes.length !== 0){
-                    nodes[0].childNodes.forEach((item) => {
-                        if(item.nodeName === "INPUT"){
-                            item.disabled = false
-                        }
-                    })
-                    nodes[0].className = "button-column-row preprocess-enabled"
-                }
-            }
-            else{
-                let nodes = document.getElementsByClassName("preprocess-enabled")
-                while (nodes.length !== 0) {
-                    nodes[0].childNodes.forEach((item) => {
-                        if(item.nodeName === "INPUT"){
-                            item.disabled = true
-                        }
-                    })
-                    nodes[0].className = "button-column-row preprocess-disabled"
-                }
+            let getClassName = e.target.checked ? "preprocess-disabled" : "preprocess-enabled"
+            let setClassName = e.target.checked ? "preprocess-enabled" : "preprocess-disabled"
+            let disabled = !e.target.checked
+            let nodes = document.getElementsByClassName(getClassName)
+            while(nodes.length !== 0){
+                nodes[0].childNodes.forEach((item) => {
+                    if(item.nodeName === "INPUT"){
+                        item.disabled = disabled
+                    }
+                })
+                nodes[0].className = "button-column-row " + setClassName
             }
         }
 
-        function processImage() {
+        function setConfig(){
+            let usePreprocess = document.getElementById("use-preprocess").checked
+            let useBinary = document.getElementById("use-binary").checked
+            let useFilter = document.getElementById("use-filter").checked
+            let dilateFirst = document.getElementById("dilate-first").checked
+            let erodeKernel = document.getElementById("erode-kernel").value
+            let dilateKernel = document.getElementById("dilate-kernel").value
+
+            fetch("/api/passconfig", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    usePreprocess: usePreprocess,
+                    useBinary: useBinary,
+                    useFilter: useFilter,
+                    dilateFirst: dilateFirst,
+                    erodeKernel: erodeKernel,
+                    dilateKernel: dilateKernel
+                }),
+            })
+            .then(data => data.json())
+            .then(data => {
+                console.log(data)
+                // 显示处理后的图片
+                var imageDisplay = document.getElementById('imageDisplay');
+                imageDisplay.innerHTML = '<img src="data:image/jpeg;base64,' + data + '" class="img-fluid">';
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function passImage() {
             var input = document.getElementById('imageInput');
             var file = input.files[0];
 
@@ -165,24 +187,19 @@
                 var reader = new FileReader();
                 reader.onload = function (e) {
                     var imageData = e.target.result;
-
-                    // 显示选择的图片
-                    var imageDisplay = document.getElementById('imageDisplay');
-                    imageDisplay.innerHTML = '<img src="' + imageData + '" class="img-fluid">';
-
                     // 发送图片数据到后端进行识别
-                    fetch('/api/ocr', {
+                    fetch('/api/passimage', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ img: imageData })
+                        body: JSON.stringify({ img: imageData }),
                     })
-                    .then(response => response.json())
+                    .then(data => data.json())
                     .then(data => {
-                        // 显示识别结果
-                        var resultDisplay = document.getElementById('resultDisplay');
-                        resultDisplay.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                        // 显示处理后的图片
+                        var imageDisplay = document.getElementById('imageDisplay');
+                        imageDisplay.innerHTML = '<img src="data:image/jpeg;base64,' + data + '" class="img-fluid">';
                     })
                     .catch(error => console.error('Error:', error));
                 };
@@ -191,8 +208,24 @@
                 alert('请选择图片文件.');
             }
         }
+
+        function recognize() {
+            fetch('/api/ocr', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(data => data.json())
+            .then(data => {
+                //显示识别结果
+                var resultDisplay = document.getElementById('resultDisplay');
+                resultDisplay.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+        }
         function changeValue(e){
             document.getElementById(`label-${e}`).innerHTML = document.getElementById(e).value;
+            setConfig()
         }
 
         window.onload = function() {
