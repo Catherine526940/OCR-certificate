@@ -50,23 +50,10 @@ def download_txt():
         return send_file(file_path, as_attachment=True)
     else:
         return "Error: File not found"
-@app.route('/api/ocr', methods=['POST'])
+@app.route('/api/ocr')
 def ocr_api():
-    #image_file = request.data#z正常情况下传过来就是base64编码
-    # print(request.data)
-
-    image_file = json.loads(request.data)
-    image_file = image_file["img"]
-    image_file = image_file[image_file.index("base64,") + 7:]
-
-    # 读取图像文件并解码为图像
-    image_data = base64.b64decode(image_file)#base64解码
-    image = Image.open(io.BytesIO(image_data))#用PIL加载图片
-    #将PIL转为cv，因为后面我们切割（各种预处理）需要cv图片
-    image = np.array(image)
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     # 图像处理与识别
-    result = ocr.recognize(image)
+    result = ocr.recognize()
 
     # 返回识别结果json
     return jsonify(result)
@@ -77,11 +64,32 @@ def change():
     ocr.changeMuban(name)
     return jsonify(name)
 
-@app.route('/api/processconfig')
+@app.route('/api/passimage', methods=['POST'])
+def passImage():
+    image_file = json.loads(request.data)
+    image_file = image_file["img"]
+    image_file = image_file[image_file.index("base64,") + 7:]
+
+    # 读取图像文件并解码为图像
+    image_data = base64.b64decode(image_file)  # base64解码
+    image = Image.open(io.BytesIO(image_data))  # 用PIL加载图片
+    # 将PIL转为cv，因为后面我们切割（各种预处理）需要cv图片
+    image = np.array(image)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    enhanced_image = ocr.changeImage(image)
+    return jsonify(cv2ToBase64(enhanced_image))
+
+@app.route('/api/passconfig', methods=["POST"])
 def setConfig():
     config = json.loads(request.data)
-    image_new = ocr.image_processor.changeConfig(config)
-    return jsonify(image_new)
+    image_new = ocr.setConfig(config)
+    return jsonify(cv2ToBase64(image_new))
+
+def cv2ToBase64(image):
+    image1 = cv2.imencode('.jpg', image)[1]
+    image_code = str(base64.b64encode(image1))
+    return image_code[2:-1]
+
 
 if __name__ == "__main__":
     app.run(debug=True)

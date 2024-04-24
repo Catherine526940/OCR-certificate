@@ -9,6 +9,9 @@ class ImageOCR:
         self.image_processor = ImageProcessor()
         self.ocr = RecognitionModel(weights_path)
         self.currentmuban = "产权证"
+        self.enhanced_image_now = None
+        self.angle_now = 0
+        self.raw_shape = None
 
     def changeMuban(self, name):
         self.image_h, self.image_w, self.template = self.readTemplateTxt(f"../ImageProcessing/{name}.txt")
@@ -28,9 +31,19 @@ class ImageOCR:
                 h, w = map(int, line)
         return h, w, pd.DataFrame(template, columns=["name", "ltx", "lty", "rbx", "rby"])
 
-    def recognize(self, image):
-        _, enhanced_image, angle = self.image_processor.processImage(image, (self.image_w, self.image_h))
-        result = self.getResult(enhanced_image, image.shape, angle)
+    def changeImage(self, image):
+        self.raw_shape = image.shape
+        self.enhanced_image_now, self.angle_now = self.image_processor.setImage(image, (self.image_w, self.image_h))
+        self.enhanced_image_now = self.image_processor.doOtherProcess()
+        return self.enhanced_image_now
+
+    def setConfig(self, config):
+        self.image_processor.changeConfig(config)
+        self.enhanced_image_now = self.image_processor.doOtherProcess()
+        return self.enhanced_image_now
+
+    def recognize(self):
+        result = self.getResult(self.enhanced_image_now, self.raw_shape, self.angle_now)
         return result
 
     def getResult(self, enhanced_image, raw_shape, angle):
@@ -86,3 +99,4 @@ class ImageOCR:
         item["value"] = value
         item["key"] = key
         return item
+
